@@ -1,0 +1,11 @@
+Viết bài giới thiệu chuyên nghiệp về {{topic}} dành cho {{character}}. Giọng văn {{style}}, nội dung rõ ràng, có mở bài thu hút, ba lợi ích chính và một lời kêu gọi hành động ngắn gọn.
+
+Tạo prompt hình ảnh điện ảnh về {{topic}} tại {{location}}. Phong cách {{style}}, sử dụng góc máy {{camera}}, ánh sáng tự nhiên, bố cục có chiều sâu, tỉ lệ {{ratio}}, seed {{seed}}. Không watermark, không chữ, không chi tiết thừa.
+
+Lập kịch bản video ngắn 30 giây về {{topic}}. Chia thành sáu cảnh, mỗi cảnh gồm mô tả hình ảnh, chuyển động camera, lời thoại hoặc chữ trên màn hình và thời lượng dự kiến. Bối cảnh {{location}}, phong cách {{style}}.
+
+Viết năm tiêu đề quảng cáo cho {{topic}} hướng tới {{character}}. Mỗi tiêu đề dưới 12 từ, cụ thể, dễ hiểu, không phóng đại và không sử dụng từ ngữ sáo rỗng.
+
+Tạo kế hoạch nội dung bảy ngày về {{topic}}. Với mỗi ngày, cung cấp chủ đề, định dạng bài đăng, nội dung chính, lời kêu gọi hành động và mục tiêu tương tác. Giọng văn {{style}}.
+
+Phân tích {{topic}} cho người mới bắt đầu. Giải thích bằng ngôn ngữ đơn giản, đưa ra ví dụ thực tế, các lỗi thường gặp và danh sách năm bước có thể thực hiện ngay.

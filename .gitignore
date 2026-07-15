@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+playwright-report
+.env.local
+*.log
+.npm-cache/
+*.tsbuildinfo
+.DS_Store
