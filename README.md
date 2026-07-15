@@ -1,6 +1,8 @@
-# AI Workflow Studio
+# Generate Image Extension
 
-A local-first Chrome Extension for organizing projects and prompts, scheduling AI generation work, tracking downloads and history, and automating supported AI websites through isolated adapters.
+Chrome MV3 extension for a simple project-based generation flow:
+
+`Project → import prompts → edit if needed → select → generate sequentially → regenerate`
 
 ## Development
 
@@ -12,15 +14,14 @@ npm run lint
 npm run build
 ```
 
-Load the generated `dist` directory from `chrome://extensions` using **Load unpacked**. Enable Developer mode first.
+Load the generated `dist` directory from `chrome://extensions` with **Developer mode** enabled.
 
-## Runtime architecture
+## Use
 
-- `src/background`: Manifest V3 service worker, typed message router, queue scheduling, downloads, notifications, tabs, and alarms.
-- `src/content`: page-side automation entry point with DOM observation and adapter dispatch.
-- `src/adapters`: generic `BrowserAutomationAdapter` contract plus Grok, ChatGPT, Gemini, and Claude configurations.
-- `src/storage` and `src/repositories`: Dexie database and repository abstraction for all persistent records.
-- `src/queue`: prioritized execution engine with retry, pause, resume, cancel, history, and structured logging.
-- `src/app`, `src/pages`, and `src/components`: React desktop UI, navigation, command palette, design system, and feature pages.
+1. Open the extension and create a project.
+2. Import a `.txt`, `.csv`, or `.json` prompt file.
+3. Edit any imported prompt directly in the project when needed.
+4. Select one or more prompts and choose Grok, ChatGPT, Gemini, or Claude.
+5. Start generation. Jobs run one at a time in Queue; completed or failed jobs can be regenerated.
 
-Workspace data is stored in IndexedDB. Backups can be imported or exported from Settings.
+Prompts are sent exactly as written. There is no mock seed data and no variable form to fill.
