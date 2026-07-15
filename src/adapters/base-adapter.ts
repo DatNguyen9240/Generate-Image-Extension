@@ -1,6 +1,19 @@
-import type { AutomationCapabilities, BrowserAutomationAdapter, ResultMetadata } from './browser-automation-adapter';
+import type {
+  AutomationCapabilities,
+  BrowserAutomationAdapter,
+  ResultMetadata,
+} from './browser-automation-adapter';
 import type { Website } from '@/types/domain';
 import { DOMCache, retry, setNativeValue } from '@/automation/dom';
+const isValidContentImage = (img: HTMLImageElement) => {
+  if (!img.complete) return true;
+  if (img.naturalWidth > 0 && img.naturalWidth <= 120) return false;
+  if (img.naturalHeight > 0 && img.naturalHeight <= 120) return false;
+  const src = img.src || img.currentSrc || '';
+  if (/avatar|icon|logo|spinner|loading/i.test(src)) return false;
+  return true;
+};
+
 export abstract class BaseAdapter implements BrowserAutomationAdapter {
   protected cache = new DOMCache();
   protected started = 0;
@@ -17,20 +30,79 @@ export abstract class BaseAdapter implements BrowserAutomationAdapter {
     this.started = Date.now();
   }
 
-  detectPage() { return this.hosts.includes(location.hostname); }
-  detectCapabilities(): AutomationCapabilities { return { text: true, image: true, video: this.website === 'grok' || this.website === 'gemini', fileUpload: true }; }
-  findEditor() { return this.cache.get<HTMLElement>(this.editorSelectors); }
+  detectPage() {
+    return this.hosts.includes(location.hostname);
+  }
+  detectCapabilities(): AutomationCapabilities {
+    return {
+      text: true,
+      image: true,
+      video: this.website === 'grok' || this.website === 'gemini',
+      fileUpload: true,
+    };
+  }
+  dismissPopups() {
+    const selectors = [
+      'button[aria-label*="close" i]',
+      'button[aria-label*="dismiss" i]',
+      '[data-testid*="close" i]',
+      'div[aria-label*="close" i]',
+      'div[role="button"][aria-label*="close" i]',
+      '.absolute.top-4.right-4 button',
+      '.absolute.top-5.right-5 button',
+      'button.absolute.top-4.right-4',
+      'svg[class*="close" i]',
+      'svg[id*="close" i]',
+    ];
+    for (const selector of selectors) {
+      const btn = document.querySelector<HTMLElement>(selector);
+      if (btn && btn.isConnected) {
+        try {
+          btn.click();
+          break;
+        } catch (e) {
+          console.warn('Failed to click close button:', e);
+        }
+      }
+    }
+  }
+
+  findEditor() {
+    this.dismissPopups();
+    return this.cache.get<HTMLElement>(this.editorSelectors);
+  }
 
   private resultSignature() {
-    return this.resultSelectors.flatMap((selector) => [...document.querySelectorAll<HTMLElement>(selector)]).flatMap((node) => [node, ...node.querySelectorAll<HTMLImageElement | HTMLVideoElement>('img, video')]).map((node) => {
-      const media = node instanceof HTMLImageElement || node instanceof HTMLVideoElement ? node.currentSrc || node.src : '';
-      return `${media}|${node.textContent?.length ?? 0}`;
-    }).join('||');
+    return this.resultSelectors
+      .flatMap((selector) => [...document.querySelectorAll<HTMLElement>(selector)])
+      .flatMap((node) => [
+        node,
+        ...node.querySelectorAll<HTMLImageElement | HTMLVideoElement>('img, video'),
+      ])
+      .map((node) => {
+        if (node instanceof HTMLImageElement && !isValidContentImage(node)) return '';
+        const media =
+          node instanceof HTMLImageElement || node instanceof HTMLVideoElement
+            ? node.currentSrc || node.src
+            : '';
+        return `${media}|${node.textContent?.length ?? 0}`;
+      })
+      .join('||');
   }
 
   private resultUrls() {
-    return this.resultSelectors.flatMap((selector) => [...document.querySelectorAll<HTMLElement>(selector)]).flatMap((node) => [node, ...node.querySelectorAll<HTMLImageElement | HTMLVideoElement>('img, video')])
-      .map((node) => node instanceof HTMLImageElement || node instanceof HTMLVideoElement ? node.currentSrc || node.src : '')
+    return this.resultSelectors
+      .flatMap((selector) => [...document.querySelectorAll<HTMLElement>(selector)])
+      .flatMap((node) => [
+        node,
+        ...node.querySelectorAll<HTMLImageElement | HTMLVideoElement>('img, video'),
+      ])
+      .map((node) => {
+        if (node instanceof HTMLImageElement && !isValidContentImage(node)) return '';
+        return node instanceof HTMLImageElement || node instanceof HTMLVideoElement
+          ? node.currentSrc || node.src
+          : '';
+      })
       .filter(Boolean);
   }
 
@@ -55,19 +127,56 @@ export abstract class BaseAdapter implements BrowserAutomationAdapter {
           resolve();
         }
       });
-      observer.observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
-      signal?.addEventListener('abort', () => { clearTimeout(timeout); observer.disconnect(); reject(new DOMException('Cancelled', 'AbortError')); }, { once: true });
+      observer.observe(document.body, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        characterData: true,
+      });
+      signal?.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timeout);
+          observer.disconnect();
+          reject(new DOMException('Cancelled', 'AbortError'));
+        },
+        { once: true },
+      );
     });
   }
 
-  detectCompletion() { return this.resultSelectors.some((selector) => document.querySelector(selector)); }
+  detectCompletion() {
+    return this.resultSelectors.some((selector) => document.querySelector(selector));
+  }
 
   async collectResultMetadata(): Promise<ResultMetadata> {
-    const nodes = this.resultSelectors.flatMap((selector) => [...document.querySelectorAll<HTMLElement>(selector)]);
-    const mediaNodes = nodes.flatMap((node) => [node, ...node.querySelectorAll<HTMLImageElement | HTMLVideoElement>('img, video')]);
-    const allUrls = mediaNodes.map((node) => node instanceof HTMLImageElement || node instanceof HTMLVideoElement ? node.currentSrc || node.src : '').filter(Boolean);
+    const nodes = this.resultSelectors.flatMap((selector) => [
+      ...document.querySelectorAll<HTMLElement>(selector),
+    ]);
+    const mediaNodes = nodes.flatMap((node) => [
+      node,
+      ...node.querySelectorAll<HTMLImageElement | HTMLVideoElement>('img, video'),
+    ]);
+    const allUrls = mediaNodes
+      .map((node) => {
+        if (node instanceof HTMLImageElement) {
+          if (!isValidContentImage(node)) return '';
+          return node.currentSrc || node.src;
+        }
+        if (node instanceof HTMLVideoElement) return node.currentSrc || node.src;
+        return '';
+      })
+      .filter(Boolean);
     const urls = [...new Set(allUrls.filter((url) => !this.previousUrls.has(url)))];
-    return { urls, text: nodes.map((node) => node.innerText).filter(Boolean).join('\n'), mimeTypes: urls.map((url) => url.match(/\.mp4/i) ? 'video/mp4' : 'image/*'), durationMs: Date.now() - this.started };
+    return {
+      urls,
+      text: nodes
+        .map((node) => node.innerText)
+        .filter(Boolean)
+        .join('\n'),
+      mimeTypes: urls.map((url) => (url.match(/\.mp4/i) ? 'video/mp4' : 'image/*')),
+      durationMs: Date.now() - this.started,
+    };
   }
 
   observeDOM(onChange: () => void) {
@@ -80,10 +189,18 @@ export abstract class BaseAdapter implements BrowserAutomationAdapter {
     if (editor) intersection.observe(editor);
     const handler = () => onChange();
     document.addEventListener('input', handler, true);
-    const dispose = () => { mutation.disconnect(); resize.disconnect(); intersection.disconnect(); document.removeEventListener('input', handler, true); };
+    const dispose = () => {
+      mutation.disconnect();
+      resize.disconnect();
+      intersection.disconnect();
+      document.removeEventListener('input', handler, true);
+    };
     this.disposers.push(dispose);
     return dispose;
   }
 
-  cleanup() { this.disposers.splice(0).forEach((dispose) => dispose()); this.cache.clear(); }
+  cleanup() {
+    this.disposers.splice(0).forEach((dispose) => dispose());
+    this.cache.clear();
+  }
 }

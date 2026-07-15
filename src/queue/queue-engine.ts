@@ -8,28 +8,34 @@ const siteHost: Record<QueueJob['website'], string> = {
   claude: 'claude.ai',
 };
 
-const waitForTab = (tabId: number, timeoutMs = 20_000) => new Promise<void>((resolve) => {
-  let settled = false;
-  const finish = () => {
-    if (settled) return;
-    settled = true;
-    clearTimeout(timeout);
-    chrome.tabs.onUpdated.removeListener(listener);
-    resolve();
-  };
-  const timeout = setTimeout(finish, timeoutMs);
-  const listener = (updatedId: number, change: { status?: string }) => {
-    if (updatedId === tabId && change.status === 'complete') finish();
-  };
-  chrome.tabs.onUpdated.addListener(listener);
-});
+const waitForTab = (tabId: number, timeoutMs = 20_000) =>
+  new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve();
+    };
+    const timeout = setTimeout(finish, timeoutMs);
+    const listener = (updatedId: number, change: { status?: string }) => {
+      if (updatedId === tabId && change.status === 'complete') finish();
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+  });
 
-const sendAutomation = async (tabId: number, payload: { prompt: string; website: QueueJob['website'] }) => {
+const sendAutomation = async (
+  tabId: number,
+  payload: { prompt: string; website: QueueJob['website'] },
+) => {
   try {
     return await chrome.tabs.sendMessage(tabId, { type: 'AUTOMATION_INSERT', payload });
   } catch (error) {
-    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-    if (!message.includes('receiving end') && !message.includes('could not establish connection')) throw error;
+    const message =
+      error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    if (!message.includes('receiving end') && !message.includes('could not establish connection'))
+      throw error;
     await chrome.tabs.reload(tabId);
     await waitForTab(tabId);
     return chrome.tabs.sendMessage(tabId, { type: 'AUTOMATION_INSERT', payload });
@@ -41,15 +47,41 @@ export class QueueEngine {
 
   async recover() {
     const jobs = await repositories.queue.byStatus('running');
-    await Promise.all(jobs.map((job) => repositories.queue.update(job.id, {
-      status: 'waiting',
-      progress: 0,
-      error: 'Recovered after extension restart',
-    })));
+    await Promise.all(
+      jobs.map((job) =>
+        repositories.queue.update(job.id, {
+          status: 'waiting',
+          progress: 0,
+          error: 'Recovered after extension restart',
+        }),
+      ),
+    );
   }
 
-  async enqueue(data: Omit<QueueJob, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'progress' | 'attempts'>) {
-    const job = await repositories.queue.create({ ...data, status: 'waiting', progress: 0, attempts: 0 });
+  async enqueue(
+    data: Omit<QueueJob, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'progress' | 'attempts'>,
+  ) {
+    if (data.promptId) {
+      const existing = await repositories.queue.byPromptId(data.promptId);
+      if (existing) {
+        await repositories.queue.update(existing.id, {
+          status: 'waiting',
+          progress: 0,
+          attempts: 0,
+          error: undefined,
+          website: data.website,
+          prompt: data.prompt,
+        });
+        void this.run();
+        return existing;
+      }
+    }
+    const job = await repositories.queue.create({
+      ...data,
+      status: 'waiting',
+      progress: 0,
+      attempts: 0,
+    });
     void this.run();
     return job;
   }
@@ -59,8 +91,9 @@ export class QueueEngine {
     this.active = true;
     try {
       while (true) {
-        const jobs = (await repositories.queue.byStatus('waiting'))
-          .sort((a, b) => b.priority - a.priority || a.createdAt.localeCompare(b.createdAt));
+        const jobs = (await repositories.queue.byStatus('waiting')).sort(
+          (a, b) => b.priority - a.priority || a.createdAt.localeCompare(b.createdAt),
+        );
         if (!jobs[0]) break;
         await this.execute(jobs[0]);
       }
@@ -92,6 +125,7 @@ export class QueueEngine {
       });
       await repositories.history.create({
         projectId: job.projectId,
+        promptId: job.promptId,
         projectName: project?.name ?? '',
         prompt: job.prompt,
         website: job.website,
@@ -109,6 +143,7 @@ export class QueueEngine {
       const project = job.projectId ? await repositories.projects.get(job.projectId) : undefined;
       await repositories.history.create({
         projectId: job.projectId,
+        promptId: job.promptId,
         projectName: project?.name ?? '',
         prompt: job.prompt,
         website: job.website,

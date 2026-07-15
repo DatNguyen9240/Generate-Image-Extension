@@ -1,11 +1,11 @@
-Viết bài giới thiệu chuyên nghiệp về {{topic}} dành cho {{character}}. Giọng văn {{style}}, nội dung rõ ràng, có mở bài thu hút, ba lợi ích chính và một lời kêu gọi hành động ngắn gọn.
+Tạo hình ảnh chân dung nghệ thuật chuyên nghiệp về một cướp biển người que (stickman pirate) đội mũ thuyền trưởng cướp biển. Phong cách {{style}}, ánh sáng {{lighting}}, bối cảnh tại {{location}}, chụp bằng ống kính {{camera}}, chiều sâu trường ảnh mỏng (bokeh), độ nét cao, chi tiết chân thực.
 
-Tạo prompt hình ảnh điện ảnh về {{topic}} tại {{location}}. Phong cách {{style}}, sử dụng góc máy {{camera}}, ánh sáng tự nhiên, bố cục có chiều sâu, tỉ lệ {{ratio}}, seed {{seed}}. Không watermark, không chữ, không chi tiết thừa.
+Tạo hình ảnh điện ảnh (cinematic) về một cướp biển người que (stickman pirate) đang đứng trên mũi thuyền buồm cướp biển giữa biển khơi hoành tráng tại {{location}}. Phong cách {{style}}, sử dụng góc máy {{camera}}, ánh sáng {{lighting}}, tâm trạng {{mood}}, bố cục có chiều sâu, tỷ lệ khung hình {{ratio}}, độ nét cực cao.
 
-Lập kịch bản video ngắn 30 giây về {{topic}}. Chia thành sáu cảnh, mỗi cảnh gồm mô tả hình ảnh, chuyển động camera, lời thoại hoặc chữ trên màn hình và thời lượng dự kiến. Bối cảnh {{location}}, phong cách {{style}}.
+Tạo hình ảnh hành động cướp biển người que (stickman pirate) đang đấu kiếm với đối thủ trên hòn đảo hoang dã tại {{location}}. Phong cách {{style}}, góc chụp {{camera}}, tạo cảm giác kịch tính {{mood}}, ánh sáng ấn tượng.
 
-Viết năm tiêu đề quảng cáo cho {{topic}} hướng tới {{character}}. Mỗi tiêu đề dưới 12 từ, cụ thể, dễ hiểu, không phóng đại và không sử dụng từ ngữ sáo rỗng.
+Tạo hình ảnh cướp biển người que (stickman pirate) đang mở rương kho báu phát sáng lấp lánh trong hang động tối tăm tại {{location}}. Thời gian trong ngày là {{time_of_day}}, ánh sáng vàng rực từ rương kho báu hắt lên mặt người que, góc máy {{camera}}, phong cách {{style}}, cảm giác {{mood}}.
 
-Tạo kế hoạch nội dung bảy ngày về {{topic}}. Với mỗi ngày, cung cấp chủ đề, định dạng bài đăng, nội dung chính, lời kêu gọi hành động và mục tiêu tương tác. Giọng văn {{style}}.
+Tạo hình ảnh một hạm đội thuyền cướp biển người que (stickman pirate ship) bay lơ lửng trên không trung ở thành phố tương lai tại {{location}}. Phong cách thiết kế {{style}}, ánh sáng neon rực rỡ, bầu không khí {{mood}}, chụp bằng góc máy {{camera}}, tỷ lệ khung hình {{ratio}}, seed {{seed}}.
 
-Phân tích {{topic}} cho người mới bắt đầu. Giải thích bằng ngôn ngữ đơn giản, đưa ra ví dụ thực tế, các lỗi thường gặp và danh sách năm bước có thể thực hiện ngay.
+Tạo hình ảnh tranh vẽ minh họa nghệ thuật (concept art) 2D/3D về một cướp biển người que (stickman pirate) cùng chú vẹt người que trên vai. Chủ đề {{style}}, màu sắc chủ đạo sống động, bối cảnh tại {{location}}, nét vẽ chi tiết, mang phong cách của {{character}}, cảm xúc {{mood}}.
