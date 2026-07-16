@@ -31,6 +31,50 @@ import { useAppStore } from '@/state/app-store';
 import type { Prompt, QueueJob, Website } from '@/types/domain';
 import { formatDate } from '@/utils';
 
+const copyImageToClipboard = async (url: string) => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+
+    let pngBlob = blob;
+    if (blob.type !== 'image/png') {
+      pngBlob = await new Promise<Blob>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob((resultBlob) => {
+            if (resultBlob) {
+              resolve(resultBlob);
+            } else {
+              reject(new Error('Canvas toBlob failed'));
+            }
+          }, 'image/png');
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(blob);
+      });
+    }
+
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'image/png': pngBlob,
+      }),
+    ]);
+    toast.success('Copied image to clipboard');
+  } catch (error) {
+    console.error('Failed to copy image to clipboard:', error);
+    toast.error('Could not copy image to clipboard');
+  }
+};
+
 const sites: Array<{ value: Website; label: string }> = [
   { value: 'grok', label: 'Grok' },
   { value: 'chatgpt', label: 'ChatGPT' },
@@ -396,13 +440,22 @@ function ProjectWorkspace({ projectId, onBack }: { projectId: string; onBack: ()
                               className="group relative h-16 w-16 overflow-hidden rounded-lg border border-line bg-[#0d0f14] hover:border-accent/40"
                             >
                               <img src={url} alt="" className="h-full w-full object-cover" />
-                              <a
-                                href={url}
-                                download={`generation_${prompt.title.replace(/[^a-z0-9]/gi, '_')}_${imgIndex}.png`}
-                                className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition text-[9px] font-semibold text-white text-center p-0.5"
-                              >
-                                Save
-                              </a>
+                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/75 opacity-0 group-hover:opacity-100 transition p-1">
+                                <button
+                                  type="button"
+                                  onClick={() => void copyImageToClipboard(url)}
+                                  className="text-[10px] font-semibold text-white hover:underline"
+                                >
+                                  Copy
+                                </button>
+                                <a
+                                  href={url}
+                                  download={`generation_${prompt.title.replace(/[^a-z0-9]/gi, '_')}_${imgIndex}.png`}
+                                  className="text-[10px] font-semibold text-muted hover:text-white hover:underline"
+                                >
+                                  Save
+                                </a>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -487,13 +540,22 @@ function ProjectWorkspace({ projectId, onBack }: { projectId: string; onBack: ()
                   <img src={img.url} alt={img.prompt} className="h-full w-full object-cover" />
                   <div className="absolute inset-0 flex flex-col justify-end bg-black/75 opacity-0 transition group-hover:opacity-100 p-3">
                     <p className="line-clamp-3 text-[11px] text-slate-200">{img.prompt}</p>
-                    <a
-                      href={img.url}
-                      download={`generation_${index}.png`}
-                      className="mt-2 block w-full text-center rounded-lg bg-accent py-1.5 text-xs font-semibold text-white hover:bg-accent-hover transition"
-                    >
-                      Download
-                    </a>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void copyImageToClipboard(img.url)}
+                        className="flex-1 rounded-lg bg-accent py-1.5 text-xs font-semibold text-white hover:bg-accent-hover transition"
+                      >
+                        Copy
+                      </button>
+                      <a
+                        href={img.url}
+                        download={`generation_${index}.png`}
+                        className="flex-1 text-center rounded-lg border border-line bg-panel py-1.5 text-xs font-semibold text-white hover:bg-[#191c25] transition"
+                      >
+                        Download
+                      </a>
+                    </div>
                   </div>
                 </div>
               ))}

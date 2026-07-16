@@ -32,24 +32,13 @@ const pressEnter = (editor: HTMLElement) => {
   editor.dispatchEvent(new KeyboardEvent('keyup', event));
 };
 
-const downloadAndConvertToBase64 = async (url: string, promptText: string): Promise<string> => {
+const downloadAndConvertToBase64 = async (url: string, _promptText: string): Promise<string> => {
   try {
     if (url.startsWith('data:')) return url;
     const response = await fetch(url);
     const blob = await response.blob();
 
-    // 1. Trigger browser download
-    const filename = `${promptText.slice(0, 30).replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.png`;
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-
-    // 2. Convert to base64 Data URL
+    // Convert to base64 Data URL
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
