@@ -17,6 +17,7 @@ const isValidContentImage = (img: HTMLImageElement) => {
 export abstract class BaseAdapter implements BrowserAutomationAdapter {
   protected cache = new DOMCache();
   protected started = 0;
+  protected generationTimeoutMs = 120_000;
   private previousResultSignature = '';
   private previousUrls = new Set<string>();
   private disposers: (() => void)[] = [];
@@ -67,9 +68,28 @@ export abstract class BaseAdapter implements BrowserAutomationAdapter {
     }
   }
 
+  protected acceptsEditor(editor: HTMLElement) {
+    if (editor.getAttribute('aria-hidden') === 'true') return false;
+    if (
+      (editor instanceof HTMLTextAreaElement || editor instanceof HTMLInputElement) &&
+      (editor.disabled || editor.readOnly)
+    )
+      return false;
+    const rect = editor.getBoundingClientRect();
+    const style = window.getComputedStyle(editor);
+    return (
+      rect.width > 0 &&
+      rect.height > 0 &&
+      style.visibility !== 'hidden' &&
+      style.display !== 'none'
+    );
+  }
+
   findEditor() {
     this.dismissPopups();
-    return this.cache.get<HTMLElement>(this.editorSelectors);
+    return this.cache.get<HTMLElement>(this.editorSelectors, (editor) =>
+      this.acceptsEditor(editor),
+    );
   }
 
   private resultSignature() {
@@ -115,11 +135,12 @@ export abstract class BaseAdapter implements BrowserAutomationAdapter {
   }
 
   async waitForGeneration(signal?: AbortSignal) {
+    if (this.detectCompletion() && this.resultSignature() !== this.previousResultSignature) return;
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         observer.disconnect();
         reject(new Error('Timed out waiting for a new result'));
-      }, 120_000);
+      }, this.generationTimeoutMs);
       const observer = new MutationObserver(() => {
         if (this.detectCompletion() && this.resultSignature() !== this.previousResultSignature) {
           clearTimeout(timeout);

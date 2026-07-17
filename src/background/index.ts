@@ -7,6 +7,17 @@ const siteUrl: Record<Website, string> = {
   chatgpt: 'https://chatgpt.com/',
   gemini: 'https://gemini.google.com/',
   claude: 'https://claude.ai/',
+  'google-flow': 'https://labs.google/fx/tools/flow',
+};
+
+// Flow can include a locale segment (for example /fx/vi/tools/flow), so reuse
+// any open Flow tab instead of opening a second tab for the canonical URL.
+const siteTabPattern: Record<Website, string> = {
+  grok: 'https://grok.com/*',
+  chatgpt: 'https://chatgpt.com/*',
+  gemini: 'https://gemini.google.com/*',
+  claude: 'https://claude.ai/*',
+  'google-flow': 'https://labs.google/fx/*',
 };
 
 const waitForTab = (tabId: number, timeoutMs = 20_000) => new Promise<void>((resolve) => {
@@ -27,7 +38,7 @@ const waitForTab = (tabId: number, timeoutMs = 20_000) => new Promise<void>((res
 });
 
 const getOrOpenSiteTab = async (website: Website) => {
-  const [existing] = await chrome.tabs.query({ url: `${siteUrl[website]}*` });
+  const [existing] = await chrome.tabs.query({ url: siteTabPattern[website] });
   const tab = existing ?? await chrome.tabs.create({ url: siteUrl[website], active: true });
   if (!tab.id) throw new Error(`Could not open ${website}`);
   if (tab.status !== 'complete') await waitForTab(tab.id);

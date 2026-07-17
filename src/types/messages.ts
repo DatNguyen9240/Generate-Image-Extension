@@ -6,6 +6,7 @@ export type StudioRequest =
   | { type: 'RUN_PROMPT'; payload: { promptId: string; prompt: string; website: Website; projectId?: string } }
   | { type: 'RUN_PROMPT_BATCH'; payload: { projectId: string; website: Website; items: Array<{ promptId: string; prompt: string }> } }
   | { type: 'AUTOMATION_INSERT'; payload: { prompt: string; website: Website } }
+  | { type: 'AUTOMATION_WAIT_RESULT'; payload: { prompt: string; website: Website } }
   | { type: 'AUTOMATION_STATUS' };
 export interface StudioResponse<T = unknown> { ok: boolean; data?: T; error?: string }
 export const sendMessage = <T>(message: StudioRequest) => chrome.runtime.sendMessage(message) as Promise<StudioResponse<T>>;

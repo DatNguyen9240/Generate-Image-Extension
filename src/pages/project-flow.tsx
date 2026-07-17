@@ -80,6 +80,7 @@ const sites: Array<{ value: Website; label: string }> = [
   { value: 'chatgpt', label: 'ChatGPT' },
   { value: 'gemini', label: 'Gemini' },
   { value: 'claude', label: 'Claude' },
+  { value: 'google-flow', label: 'Google Flow' },
 ];
 
 export function ProjectFlow() {

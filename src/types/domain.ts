@@ -1,5 +1,5 @@
 export type ID = string;
-export type Website = 'grok' | 'chatgpt' | 'gemini' | 'claude';
+export type Website = 'grok' | 'chatgpt' | 'gemini' | 'claude' | 'google-flow';
 export type JobStatus = 'waiting' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 
 export interface BaseRecord {

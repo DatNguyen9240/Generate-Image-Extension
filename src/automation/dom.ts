@@ -1,10 +1,13 @@
 export class DOMCache {
   private cache = new Map<string, Element>();
-  get<T extends Element>(selectors: string[]): T | null {
+  get<T extends Element>(
+    selectors: string[],
+    accept: (element: T) => boolean = () => true,
+  ): T | null {
     for (const selector of selectors) {
       const cached = this.cache.get(selector);
-      if (cached?.isConnected) return cached as T;
-      const found = document.querySelector<T>(selector);
+      if (cached?.isConnected && accept(cached as T)) return cached as T;
+      const found = [...document.querySelectorAll<T>(selector)].find(accept);
       if (found) {
         this.cache.set(selector, found);
         return found;
@@ -52,6 +55,14 @@ export const setNativeValue = (element: HTMLElement, value: string) => {
   } else {
     let success = false;
     try {
+      element.dispatchEvent(
+        new InputEvent('beforeinput', {
+          bubbles: true,
+          cancelable: true,
+          inputType: 'insertText',
+          data: value,
+        }),
+      );
       const range = document.createRange();
       range.selectNodeContents(element);
       const selection = window.getSelection();
@@ -65,11 +76,13 @@ export const setNativeValue = (element: HTMLElement, value: string) => {
     }
     if (!success) {
       element.textContent = value;
-      element.dispatchEvent(new Event('input', { bubbles: true }));
-      element.dispatchEvent(
-        new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }),
-      );
-      element.dispatchEvent(new Event('change', { bubbles: true }));
     }
+    // Some React/Lexical editors do not emit an input event when execCommand
+    // succeeds. Always notify the framework after changing content.
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(
+      new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }),
+    );
+    element.dispatchEvent(new Event('change', { bubbles: true }));
   }
 };

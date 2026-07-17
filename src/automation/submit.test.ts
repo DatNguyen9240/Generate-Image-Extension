@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findSubmitControl } from './submit';
+import { findSubmitControl, normalizeEditorText } from './submit';
 
 const rect = (left: number, top: number, width: number, height: number): DOMRect => ({
   x: left, y: top, left, top, width, height, right: left + width, bottom: top + height,
@@ -26,5 +26,11 @@ describe('findSubmitControl', () => {
     mic.getBoundingClientRect = () => rect(760, 130, 40, 40);
     arrow.getBoundingClientRect = () => rect(810, 125, 44, 44);
     expect(findSubmitControl(editor)).toBe(arrow);
+  });
+});
+
+describe('normalizeEditorText', () => {
+  it('normalizes browser whitespace without changing prompt content', () => {
+    expect(normalizeEditorText('  first\r\nsecond\u00a0\u200b ')).toBe('first\nsecond');
   });
 });

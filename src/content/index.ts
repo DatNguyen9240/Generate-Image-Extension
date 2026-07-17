@@ -2,7 +2,9 @@ import { AdapterFactory } from '@/adapters/sites';
 import {
   activateSubmitControl,
   editorValue,
+  findFlowSubmitControl,
   findSubmitControl,
+  normalizeEditorText,
   submissionAccepted,
 } from '@/automation/submit';
 
@@ -55,8 +57,52 @@ const waitForSubmission = async (prompt: string, control?: HTMLElement | null) =
   for (let attempt = 0; attempt < 12; attempt += 1) {
     await delay(250);
     if (submissionAccepted(adapter?.findEditor() ?? null, prompt, control)) return true;
+    // Grok swaps the send button for a stop/cancel control while a request is
+    // being accepted. The editor can briefly retain its value during that
+    // transition, so treat the in-flight control as acknowledgement too.
+    if (
+      document.querySelector(
+        '[data-testid*="stop" i], [data-testid*="cancel" i], button[aria-label*="stop" i], button[aria-label*="cancel" i], [aria-busy="true"]',
+      )
+    )
+      return true;
   }
   return false;
+};
+
+const waitForSubmitControl = async (editor: HTMLElement) => {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const control =
+      adapter?.website === 'google-flow'
+        ? findFlowSubmitControl(editor)
+        : findSubmitControl(editor);
+    if (control) return control;
+    await delay(250);
+  }
+  return null;
+};
+
+const flowComposerContains = (prompt: string) => {
+  const expected = normalizeEditorText(prompt);
+  return [
+    ...document.querySelectorAll<HTMLElement>(
+      'textarea, [contenteditable="true"], [role="textbox"]',
+    ),
+  ].some((candidate) => normalizeEditorText(editorValue(candidate)) === expected);
+};
+
+const insertAndFindEditor = async (prompt: string) => {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    if (attempt === 0 || attempt === 3 || attempt === 6) await adapter?.insertPrompt(prompt);
+    await delay(300);
+    const editor = adapter?.findEditor() ?? null;
+    const editorMatches =
+      editor && normalizeEditorText(editorValue(editor)) === normalizeEditorText(prompt);
+    const flowMirrorMatches = adapter?.website === 'google-flow' && flowComposerContains(prompt);
+    if (editor && (editorMatches || flowMirrorMatches))
+      return editor;
+  }
+  return null;
 };
 
 if (adapter) {
@@ -88,13 +134,10 @@ if (adapter) {
           }
           if (message.type === 'AUTOMATION_INSERT') {
             const prompt = String(message.payload.prompt ?? '');
-            await adapter.insertPrompt(prompt);
-            await delay(400);
-            const editor = adapter.findEditor();
-            if (!editor || editorValue(editor).trim() !== prompt.trim())
-              throw new Error('Prompt could not be inserted into the editor');
+            const editor = await insertAndFindEditor(prompt);
+            if (!editor) throw new Error('Prompt could not be inserted into the visible editor');
 
-            const submit = findSubmitControl(editor);
+            const submit = await waitForSubmitControl(editor);
             if (submit) activateSubmitControl(submit);
             else {
               const form = editor.closest('form');
@@ -102,7 +145,18 @@ if (adapter) {
               else pressEnter(editor);
             }
 
-            let accepted = await waitForSubmission(prompt, submit);
+            // Flow keeps the prompt text in its composer while the generation
+            // request is being queued, so an unchanged editor is not a send
+            // failure there. Its result observer below is the source of truth.
+            // Flow may keep both the prompt and an enabled Generate button
+            // while it queues the request. Once the correct control has been
+            // activated, result observation is the authoritative confirmation.
+            let accepted =
+              adapter.website === 'google-flow'
+                ? Boolean(submit)
+                : submit
+                  ? await waitForSubmission(prompt, submit)
+                  : false;
             if (!accepted) {
               const form = editor.closest('form');
               if (form instanceof HTMLFormElement) {
@@ -121,7 +175,14 @@ if (adapter) {
               accepted = await waitForSubmission(prompt, submit);
             }
             if (!accepted)
-              throw new Error('Prompt was inserted, but Grok did not accept the send action');
+              throw new Error(
+                `Prompt was inserted, but ${adapter.website} did not accept the send action`,
+              );
+
+            return sendResponse({ ok: true, data: { submitted: true } });
+          }
+          if (message.type === 'AUTOMATION_WAIT_RESULT') {
+            const prompt = String(message.payload.prompt ?? '');
 
             await adapter.waitForGeneration();
             const metadata = await adapter.collectResultMetadata();
