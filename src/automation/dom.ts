@@ -48,21 +48,10 @@ export const setNativeValue = (element: HTMLElement, value: string) => {
       element.value = value;
     }
     element.dispatchEvent(new Event('input', { bubbles: true }));
-    element.dispatchEvent(
-      new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }),
-    );
     element.dispatchEvent(new Event('change', { bubbles: true }));
   } else {
     let success = false;
     try {
-      element.dispatchEvent(
-        new InputEvent('beforeinput', {
-          bubbles: true,
-          cancelable: true,
-          inputType: 'insertText',
-          data: value,
-        }),
-      );
       const range = document.createRange();
       range.selectNodeContents(element);
       const selection = window.getSelection();
@@ -76,13 +65,8 @@ export const setNativeValue = (element: HTMLElement, value: string) => {
     }
     if (!success) {
       element.textContent = value;
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    // Some React/Lexical editors do not emit an input event when execCommand
-    // succeeds. Always notify the framework after changing content.
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-    element.dispatchEvent(
-      new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }),
-    );
-    element.dispatchEvent(new Event('change', { bubbles: true }));
   }
 };

@@ -46,6 +46,62 @@ class GoogleFlowAdapter extends SiteAdapter {
     }
     return false;
   }
+
+  /**
+   * Click the "Tạo" / "Generate" / confirm button inside the Flow agent
+   * confirmation dialog that appears when the agent is configured to ask for
+   * confirmation before every generation ("Xác nhận trước khi tạo: Luôn luôn").
+   * Returns true if a button was found and clicked.
+   */
+  private static dismissAgentConfirmation(): boolean {
+    // The dialog has role="dialog" or is a <dialog> element. Look for a
+    // prominent action button whose label suggests "confirm / create / generate".
+    const confirmPatterns = /tạo|create|generate|confirm|xác nhận|ok|yes|proceed|tiếp tục/i;
+
+    const containers = [
+      ...document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"], dialog'),
+    ];
+
+    // Also scan the entire body if no dialog container is found (Flow sometimes
+    // renders confirmation inside a bottom sheet that lacks role="dialog").
+    if (containers.length === 0) containers.push(document.body);
+
+    for (const container of containers) {
+      const buttons = [...container.querySelectorAll<HTMLButtonElement>('button')];
+      for (const btn of buttons) {
+        const label = (
+          btn.textContent?.trim() +
+          ' ' +
+          (btn.getAttribute('aria-label') ?? '')
+        ).trim();
+        if (confirmPatterns.test(label) && btn.isConnected && !btn.disabled) {
+          try {
+            btn.click();
+            return true;
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  override async waitForGeneration(signal?: AbortSignal) {
+    // Poll for and auto-dismiss agent confirmation dialogs while waiting for
+    // the generation to complete.  The base implementation uses a
+    // MutationObserver; we wrap it with a polling interval that keeps
+    // clicking the confirmation button until it disappears.
+    const confirmationInterval = window.setInterval(() => {
+      GoogleFlowAdapter.dismissAgentConfirmation();
+    }, 600);
+
+    try {
+      await super.waitForGeneration(signal);
+    } finally {
+      clearInterval(confirmationInterval);
+    }
+  }
 }
 
 export const adapters = {

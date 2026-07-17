@@ -43,26 +43,56 @@ export abstract class BaseAdapter implements BrowserAutomationAdapter {
     };
   }
   dismissPopups() {
-    const selectors = [
+    const dialogSelectors = [
+      '[role="dialog"]',
+      '[role="alertdialog"]',
+      'dialog',
+      '.modal',
+      '.dialog',
+      '.popup',
+      '#modal',
+      '#dialog',
+    ];
+    const closeSelectors = [
       'button[aria-label*="close" i]',
       'button[aria-label*="dismiss" i]',
       '[data-testid*="close" i]',
-      'div[aria-label*="close" i]',
-      'div[role="button"][aria-label*="close" i]',
+      '[data-testid*="dismiss" i]',
+      'button.absolute.top-4.right-4',
+      'button.absolute.top-5.right-5',
+    ];
+
+    for (const dialog of dialogSelectors) {
+      const dialogEl = document.querySelector(dialog);
+      if (dialogEl) {
+        for (const close of closeSelectors) {
+          const btn = dialogEl.querySelector<HTMLElement>(close);
+          if (btn && btn.isConnected) {
+            try {
+              btn.click();
+              return;
+            } catch (e) {
+              console.warn('Failed to click modal close button:', e);
+            }
+          }
+        }
+      }
+    }
+
+    const absoluteCloseSelectors = [
       '.absolute.top-4.right-4 button',
       '.absolute.top-5.right-5 button',
       'button.absolute.top-4.right-4',
-      'svg[class*="close" i]',
-      'svg[id*="close" i]',
+      'button.absolute.top-5.right-5',
     ];
-    for (const selector of selectors) {
+    for (const selector of absoluteCloseSelectors) {
       const btn = document.querySelector<HTMLElement>(selector);
       if (btn && btn.isConnected) {
         try {
           btn.click();
-          break;
+          return;
         } catch (e) {
-          console.warn('Failed to click close button:', e);
+          console.warn('Failed to click absolute close button:', e);
         }
       }
     }
@@ -78,15 +108,11 @@ export abstract class BaseAdapter implements BrowserAutomationAdapter {
     const rect = editor.getBoundingClientRect();
     const style = window.getComputedStyle(editor);
     return (
-      rect.width > 0 &&
-      rect.height > 0 &&
-      style.visibility !== 'hidden' &&
-      style.display !== 'none'
+      rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none'
     );
   }
 
   findEditor() {
-    this.dismissPopups();
     return this.cache.get<HTMLElement>(this.editorSelectors, (editor) =>
       this.acceptsEditor(editor),
     );
@@ -130,6 +156,7 @@ export abstract class BaseAdapter implements BrowserAutomationAdapter {
     this.started = Date.now();
     this.previousResultSignature = this.resultSignature();
     this.previousUrls = new Set(this.resultUrls());
+    this.dismissPopups();
     const editor = await retry(() => this.findEditor(), Boolean);
     setNativeValue(editor!, prompt);
   }

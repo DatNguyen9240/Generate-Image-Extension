@@ -88,7 +88,10 @@ const flowComposerContains = (prompt: string) => {
     ...document.querySelectorAll<HTMLElement>(
       'textarea, [contenteditable="true"], [role="textbox"]',
     ),
-  ].some((candidate) => normalizeEditorText(editorValue(candidate)) === expected);
+  ].some((candidate) => {
+    const val = normalizeEditorText(editorValue(candidate));
+    return val === expected || val.includes(expected);
+  });
 };
 
 const insertAndFindEditor = async (prompt: string) => {
@@ -96,11 +99,12 @@ const insertAndFindEditor = async (prompt: string) => {
     if (attempt === 0 || attempt === 3 || attempt === 6) await adapter?.insertPrompt(prompt);
     await delay(300);
     const editor = adapter?.findEditor() ?? null;
+    const val = editor ? normalizeEditorText(editorValue(editor)) : '';
+    const exp = normalizeEditorText(prompt);
     const editorMatches =
-      editor && normalizeEditorText(editorValue(editor)) === normalizeEditorText(prompt);
+      editor && (val === exp || (adapter?.website === 'google-flow' && val.includes(exp)));
     const flowMirrorMatches = adapter?.website === 'google-flow' && flowComposerContains(prompt);
-    if (editor && (editorMatches || flowMirrorMatches))
-      return editor;
+    if (editor && (editorMatches || flowMirrorMatches)) return editor;
   }
   return null;
 };
@@ -161,23 +165,62 @@ if (adapter) {
               const form = editor.closest('form');
               if (form instanceof HTMLFormElement) {
                 form.requestSubmit();
-                accepted = await waitForSubmission(prompt, submit);
+                accepted =
+                  adapter.website === 'google-flow'
+                    ? true
+                    : await waitForSubmission(prompt, submit);
               }
             }
             if (!accepted) {
               pressEnter(editor);
-              accepted = await waitForSubmission(prompt, submit);
+              accepted =
+                adapter.website === 'google-flow' ? true : await waitForSubmission(prompt, submit);
             }
             if (!accepted && submit) {
               submit.removeAttribute('disabled');
               submit.setAttribute('aria-disabled', 'false');
               activateSubmitControl(submit);
-              accepted = await waitForSubmission(prompt, submit);
+              accepted =
+                adapter.website === 'google-flow' ? true : await waitForSubmission(prompt, submit);
             }
             if (!accepted)
               throw new Error(
                 `Prompt was inserted, but ${adapter.website} did not accept the send action`,
               );
+
+            // On Google Flow, a confirmation dialog may appear immediately after
+            // the submit button is clicked (when the agent "Xác nhận trước khi tạo"
+            // setting is set to "Luôn luôn"). Give the dialog time to render then
+            // click the confirm/create button straight away so we don't rely
+            // solely on the polling loop inside waitForGeneration.
+            if (adapter.website === 'google-flow') {
+              await delay(800);
+              const confirmPatterns =
+                /tạo|create|generate|confirm|xác nhận|ok|yes|proceed|tiếp tục/i;
+              const containers = [
+                ...document.querySelectorAll<HTMLElement>(
+                  '[role="dialog"], [role="alertdialog"], dialog',
+                ),
+              ];
+              if (containers.length === 0) containers.push(document.body);
+              for (const container of containers) {
+                for (const btn of container.querySelectorAll<HTMLButtonElement>('button')) {
+                  const label = (
+                    (btn.textContent?.trim() ?? '') +
+                    ' ' +
+                    (btn.getAttribute('aria-label') ?? '')
+                  ).trim();
+                  if (confirmPatterns.test(label) && btn.isConnected && !btn.disabled) {
+                    try {
+                      btn.click();
+                    } catch {
+                      /* ignore */
+                    }
+                    break;
+                  }
+                }
+              }
+            }
 
             return sendResponse({ ok: true, data: { submitted: true } });
           }
